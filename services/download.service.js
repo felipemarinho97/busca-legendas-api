@@ -1,58 +1,98 @@
-const request = require("request").defaults({ jar: true });
+const needle = require("needle");
 const { fs } = require("memfs");
 const _path = require("path");
 
 const SEP = _path.sep;
 const subtitlesDir = `${__dirname + SEP}subs`;
-const credentials =
-  "data%5BUser%5D%5Busername%5D=pipoca-filmes&data%5BUser%5D%5Bpassword%5D=pipocafilmes&data%5Blembrar%5D=on";
-const loginEndpoint = "http://legendas.tv/login";
+const login = {
+  url: "http://legendas.tv/login",
+  data: "data[User][username]=pipoca-filmes&data[User][password]=pipocafilmes&data[lembrar]=on",
+  opts: {
+    headers: {
+      "user-agent":
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36",
+      origin: "http://legendas.tv",
+      referer: "http://legendas.tv/",
+    },
+    follow_max: 9,
+    follow_set_cookies: true,
+  },
+};
+const subOpts = {
+  headers: {
+    "user-agent":
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36",
+    origin: "http://legendas.tv",
+    referer: "http://legendas.tv/",
+  },
+  follow_max: 9,
+  follow_set_cookies: true,
+};
 
 if (!fs.existsSync(subtitlesDir)) {
   fs.mkdirSync(subtitlesDir, { recursive: true });
 }
 
-function downloadSubtitle(link) {
+async function getCookies() {
   return new Promise((resolve, reject) => {
-    request(
-      {
-        headers: {
-          "Content-Length": credentials.length,
-          "Content-Type": "application/x-www-form-urlencoded"
-        },
-        jar: true,
-        uri: loginEndpoint,
-        body: credentials,
-        method: "POST"
-      },
-      () => {
-        let filename = "";
-
-        const myStream = request
-          .get(link, (_, response) => {
-            let path = response.request.path.split("/");
-
-            filename = path[path.length - 1];
-          })
-          .pipe(fs.createWriteStream(subtitlesDir + SEP + "download"));
-
-        myStream.on("finish", () => {
-          fs.renameSync(
-            subtitlesDir + SEP + "download",
-            subtitlesDir + SEP + filename
+    needle.post(login.url, login.data, login.opts, function (error, resp) {
+      if (!error && (resp || {}).statusCode == 200) {
+        if (resp.cookies) resolve(resp.cookies);
+        else {
+          console.error(
+            Error("Could not Retrieve Cookies During Login Procedure")
           );
-
-          resolve({
-            pathToZip: subtitlesDir + SEP + filename,
-            subtitleFile: filename
-          });
-        });
+          resolve();
+        }
+      } else {
+        console.error(error || Error("Unknown Login Error"));
+        resolve();
       }
-    );
+    });
+  });
+}
+
+function downloadSubtitle(link) {
+  return new Promise(async (resolve, reject) => {
+    if (!subOpts.cookies) {
+      subOpts.cookies = await getCookies();
+      if (!subOpts.cookies) {
+        res.status(500).send("Could not get required cookies");
+        return;
+      } else {
+        // refresh cookies every 24h
+        setTimeout(() => {
+          delete subOpts.cookies;
+        }, 24 * 60 * 60 * 1000);
+      }
+    }
+
+    let filename = "";
+
+    const myStream = needle
+      .get(link, subOpts, (_, response) => {
+        let path = response.rawHeaders.filter(i => i.includes("filename"))[0]
+        .replace(/attachment; filename=/g, '')
+        .replace(/"/g, '')
+        filename = path
+      })
+      .pipe(fs.createWriteStream(subtitlesDir + SEP + "download"));
+
+    myStream.on("finish", () => {
+      fs.renameSync(
+        subtitlesDir + SEP + "download",
+        subtitlesDir + SEP + filename
+      );
+
+      resolve({
+        pathToZip: subtitlesDir + SEP + filename,
+        subtitleFile: filename,
+      });
+    });
   });
 }
 
 module.exports = {
   downloadSubtitle,
-  subtitlesDir
+  subtitlesDir,
 };

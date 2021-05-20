@@ -1,6 +1,6 @@
 const { fs } = require("memfs");
 const path = require("path");
-const legendastv = require("node-legendastv");
+const legendastv = require("legendas-tv");
 const levenshtein = require("fast-levenshtein");
 
 const buscaExample = {
@@ -10,8 +10,6 @@ const buscaExample = {
 
 function findSubtitle(busca) {
   busca.name = busca.name.replace(new RegExp(":"), "");
-  console.log(busca);
-
   return new Promise((resolve, reject) => {
     let search = {
       distance: Number.MAX_VALUE,
@@ -46,7 +44,6 @@ function findSubtitle(busca) {
             result
           };
         }
-        console.log(result.titulo, distance);
       });
 
       results.forEach(result => {
@@ -63,7 +60,6 @@ function findSubtitle(busca) {
         }
       });
 
-      console.log(busca);
       resolve(equalFindings);
     }
   });
@@ -74,7 +70,6 @@ function findBestSRT(
   movieName,
   bestMatch = { distance: Number.MAX_VALUE, match: null, path: subPath }
 ) {
-  console.log(subPath, movieName, bestMatch);
 
   const files = fs.readdirSync(subPath, { withFileTypes: true });
 
@@ -83,7 +78,6 @@ function findBestSRT(
     let file = fs.statSync(subPath + path.sep + fileName);
     file.name = files[i].name;
 
-    console.log(file.name);
 
     if (
       file.isFile() &&
@@ -93,7 +87,6 @@ function findBestSRT(
 
       const distance = levenshtein.get(fileName, movieName);
 
-      console.log(distance);
       if (distance < bestMatch.distance) {
         bestMatch = {
           distance,
@@ -120,8 +113,6 @@ function findBestSRT(
       }
     }
   }
-
-  console.log(bestMatch);
 
   return bestMatch;
 }
