@@ -41,13 +41,11 @@ app.get("/find", (req, appRes) => {
       release
     })
     .then(resSub => {
-      console.log(resSub);
 
       const link = resSub[0].result.linkLegenda;
 
       downloadService.downloadSubtitle(link).then(res => {
         const subtitleLocation = `${downloadService.subtitlesDir}${SEP}${release}`;
-
         const successExtraction = () => {
           const bestMatch = subtitleService.findBestSRT(
             subtitleLocation,
@@ -73,7 +71,7 @@ app.get("/find", (req, appRes) => {
       });
     })
     .catch(() => {
-      appRes.send(404, "Não encontrado");
+      appRes.status(404).send("Não encontrado");
     });
 });
 

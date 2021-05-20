@@ -6,8 +6,9 @@
   "dependencies": {
     "express": "^4.17.1",
     "fast-levenshtein": "^2.0.6",
+    "legendas-tv": "^1.0.2",
     "memfs": "^3.1.2",
-    "node-legendastv": "^0.0.3",
+    "needle": "^2.6.0",
     "node-unrar-js": "^0.8.1",
     "unzip-stream": "^0.3.0"
   }
